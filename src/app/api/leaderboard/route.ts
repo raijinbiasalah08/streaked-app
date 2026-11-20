@@ -9,11 +9,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const classroomId = searchParams.get("classroomId");
 
-    // Default classroom if not provided
-    let targetClassroom: string | undefined = classroomId || undefined;
+    // Default classroom if not provided (strictly typed string)
+    let targetClassroom: string = classroomId || "";
     if (!targetClassroom) {
       const c = await prisma.classroom.findFirst();
-      targetClassroom = c?.id;
+      targetClassroom = c?.id || "";
     }
 
     if (!targetClassroom) {
