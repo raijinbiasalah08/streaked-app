@@ -1,0 +1,119 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String             @id @default(uuid())
+  email           String             @unique
+  password        String             @default("password123")
+  name            String
+  role            String             @default("STUDENT") // STUDENT, TEACHER, ADMIN, PARENT
+  studentIdNumber String?            @unique
+  avatarUrl       String?
+  guardianEmail   String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  // Relations
+  enrollments       Enrollment[]
+  classroomsTaught  Classroom[]        @relation("TeacherClassrooms")
+  attendanceRecords AttendanceRecord[]
+  streaks           StudentStreak[]
+  earnedBadges      EarnedBadge[]
+  chatMessages      ChatMessage[]
+}
+
+model Classroom {
+  id          String   @id @default(uuid())
+  name        String   // e.g. "Data Structures & Algorithms"
+  section     String   // e.g. "BSCS 3-A"
+  subjectCode String   // e.g. "CS301"
+  roomNumber  String   // e.g. "Lab 204"
+  teacherId   String
+  teacher     User     @relation("TeacherClassrooms", fields: [teacherId], references: [id])
+  createdAt   DateTime @default(now())
+
+  enrollments       Enrollment[]
+  attendanceRecords AttendanceRecord[]
+  streaks           StudentStreak[]
+  chatMessages      ChatMessage[]
+}
+
+model Enrollment {
+  id          String    @id @default(uuid())
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  joinedAt    DateTime  @default(now())
+
+  @@unique([studentId, classroomId])
+}
+
+model AttendanceRecord {
+  id          String    @id @default(uuid())
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  date        DateTime  @default(now())
+  status      String    @default("PRESENT") // PRESENT, LATE, ABSENT, EXCUSED
+  remarks     String?
+  createdAt   DateTime  @default(now())
+
+  @@index([studentId, date])
+}
+
+model StudentStreak {
+  id                 String    @id @default(uuid())
+  studentId          String
+  student            User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classroomId        String
+  classroom          Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  currentStreak      Int       @default(0)
+  longestStreak      Int       @default(0)
+  lastAttendedDate   DateTime?
+  streakFreezesLeft  Int       @default(1)
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([studentId, classroomId])
+}
+
+model Badge {
+  id             String        @id @default(uuid())
+  name           String        // e.g. "Starter", "Bronze Scholar", "StreakED Legend"
+  description    String
+  tier           String        // STARTER, BRONZE, SILVER, GOLD, PLATINUM, LEGEND
+  requiredStreak Int           // e.g. 3, 7, 15, 30, 60, 100
+  icon           String        // icon name or emoji
+  color          String        // Tailwind gradient or hex
+  earnedBy       EarnedBadge[]
+}
+
+model EarnedBadge {
+  id         String   @id @default(uuid())
+  studentId  String
+  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  badgeId    String
+  badge      Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  unlockedAt DateTime @default(now())
+
+  @@unique([studentId, badgeId])
+}
+
+model ChatMessage {
+  id          String    @id @default(uuid())
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content     String
+  category    String    @default("QUESTION") // ANNOUNCEMENT, QUESTION, ASSIGNMENT_HELP, STUDY_MATERIAL
+  isPinned    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
